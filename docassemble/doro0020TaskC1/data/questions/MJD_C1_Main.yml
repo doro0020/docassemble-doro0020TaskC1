@@ -1,0 +1,200 @@
+---
+objects:
+  - endpoint: DADict
+---
+mandatory: True
+question: Welcome
+subquestion: |
+  This form is for completing a Federal Court Form 1 document
+  
+  **This form must be checked by a lawyer and does not constitute legal advice**
+  
+buttons:
+  - I understand: continue
+  - Exit: exit
+    url: courts.sa.gov.au
+---
+# define endpoints, need two of them, 
+
+event: endpoint['ineligible']
+
+question: Not Available
+subquestion: |
+  This form is only valid for **Federal Court** and **Federal Circuit Court** forms
+buttons:
+  - Exit: exit
+    url: courts.sa.gov.au
+  - Restart: restart
+---
+event: endpoint['finalised']
+question: Form Completed
+subquestion: |
+  Download form below in PDF or email it to yourself
+  
+  Question|Answer
+  --------|--------
+  Author|${ MJDauthorFirstName + ' ' + MJDauthorSurname + ', ' + MJDauthorRelation }
+  Firm|${ MJDfirm }
+  Service Address|${ MJDserviceAddress }
+  Phone Number|${ MJDauthorPhone }
+  Email|${ MJDauthorEmail }
+  Fax|${ MJDauthorFax }
+  Court|${ MJDcourt }
+  State|${ MJDstate }
+  Division|${ MJDdivision }
+  %if MJDapplicantType == "Person":
+  Applicant|${ MJDapplicantFirstName + ' ' + MJDapplicantTitle }
+  %else:
+  Applicant|${ MJDapplicantTitle }
+  %endif
+  %if MJDrespondentType == "Person":
+  Respondent|${ MJDrespondentFirstName + ' ' + MJDrespondentTitle }
+  %else:
+  Respondent|${ MJDrespondentTitle }
+  %endif
+  
+  
+attachment:
+  docx template file: FCA_Template.docx
+  valid formats:
+    - pdf
+
+# should display all the results from questions in a table here
+# download link as PDF
+# email to self link
+---
+# Questions:
+# info needed:
+# Lawyer name (filling out form)
+# Applicant name
+# respondent name
+# state
+# date to be displayed (format it properly)
+# whether the filer is laywer for applicant or respondent
+Question: Identity
+subquestion: |
+  Who is filling out this form and on whose behalf?
+  
+  To be displayed as the author
+ 
+fields:
+  - First Name: MJDauthorFirstName
+  - Surname: MJDauthorSurname
+    
+  - Position: MJDauthorRelation
+    choices:
+      - Lawyer for the Applicant
+      - Lawyer for the Respondent
+    input type: radio
+  
+  - Law Firm: MJDfirm
+  - Telephone number: MJDauthorPhone
+  - Fax Number: MJDauthorFax
+  - Email: MJDauthorEmail
+    datatype: email
+  - Service Address: MJDserviceAddress
+---
+Question: Court
+subquestion: |
+  Which court to be filed in?
+fields:
+  - Court: MJDcourt
+    choices:
+       - Supreme Court
+       - District Court
+       - Magistrates Court
+       - Federal Court
+       - Federal Circuit Court
+---
+Question: State
+subquestion: Which state is this for?
+fields:
+  - State: MJDstate
+    choices:
+      - New South Wales
+      - Queensland
+      - Tasmania
+      - Victoria
+      - Western Australia
+      - South Australia
+---
+Question: Applicant Information
+subquestion: Enter applicant information
+fields:
+  - Entity type: MJDapplicantType
+    choices:
+      - Person
+      - Entity
+  - Applicant First name: MJDapplicantFirstName
+    required: false
+    show if:
+      variable: MJDapplicantType
+      is: Person
+  - Applicant Surname: MJDapplicantTitle
+    show if:
+      variable: MJDapplicantType
+      is: Person
+  - Applicant Title: MJDapplicantTitle
+    show if:
+      variable: MJDapplicantType
+      is: Entity
+---
+Question: Respondent Information
+subquestion: Enter respondent information
+fields:
+  - Entity type: MJDrespondentType
+    choices:
+      - Person
+      - Entity
+  - Respondent First name: MJDrespondentFirstName
+    required: false
+    show if:
+      variable: MJDrespondentType
+      is: Person
+  - Respondent Surname: MJDrespondentTitle
+    show if:
+      variable: MJDrespondentType
+      is: Person
+  - Respondent Title: MJDrespondentTitle
+    show if:
+      variable: MJDrespondentType
+      is: Entity
+---
+question: Division
+subquestion: |
+  Which division to be entered?
+fields:
+  - Division: MJDdivision
+    choices:
+      - Corporations
+      - Criminal
+      - Employment
+      - General
+---
+# code block drives the process
+Mandatory: True
+code: |
+
+  if MJDcourt == "Federal Court" or MJDcourt == "Federal Circuit Court":
+    MJDdate = today(format='dd/MM/YYYY')
+     
+    # reformat for document depending if its a corp with just a title or a person with firstname-lastname
+    if MJDapplicantType == "Person":
+      MJDapplicantFullName = MJDapplicantFirstName + ' ' + MJDapplicantTitle
+    else:
+      MJDapplicantFullName = MJDapplicantTitle
+      
+    if MJDrespondentType == "Person":
+      MJDrespondentFullName = MJDrespondentFirstName + ' ' + MJDrespondentTitle
+    else:
+      MJDrespondentFullName = MJDrespondentTitle
+      
+    if MJDauthorRelation == "Lawyer for the Applicant":
+      MJDbehalfOf = MJDapplicantFullName + ", Applicant"
+    else:
+      MJDbehalfOf = MJDrespondentFullName + ", Respondent"
+    
+    endpoint['finalised']
+  else:
+    endpoint['ineligible']
+---
